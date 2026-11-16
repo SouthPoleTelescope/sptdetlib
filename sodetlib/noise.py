@@ -29,6 +29,7 @@ def noise_model(freq, wl, n, f_knee):
     y = wl*np.sqrt((f_knee/freq)**n+1)
     return y
 
+
 def fit_noise_asd(f, Axx, wl_f_range=(10,30), p0=None):
     """
     Return model fit for a ASD.
@@ -77,6 +78,7 @@ def fit_noise_asd(f, Axx, wl_f_range=(10,30), p0=None):
         pcov = None
     return popt
 
+
 def get_noise_params(am, wl_f_range=(10,30),
                      fit=False, nperdecade=10, **asd_args):
     """
@@ -107,9 +109,10 @@ def get_noise_params(am, wl_f_range=(10,30),
         channel, band averaged white noise levels, and f, axx ndarrays from
         the calculated ASD the keys are:
 
-        noise_pars: ndarray
-            shape is [nchans,3] the 3 items in axis=1 are: 0 = white noise,
-            1 = n (1/f index nan if fit=False), and 2 = fknee.
+        white_noise: ndarray
+        oneoverf_exp: ndarray
+            1/f index, or NaN if fit=False.
+        fknees: ndarray
         band_medians: ndarray
             shape is [8,1] median white noise level for each band.
         f: ndarray
@@ -184,16 +187,21 @@ def get_noise_params(am, wl_f_range=(10,30),
             m = am.ch_info.band == i
             band_medians[i] = np.median(noise_pars[m,0])
     nl_10mHz_rat = axx[:,idx10mHz]/nlref_10mHz
-    outdict = {'noise_pars': noise_pars,
+    outdict = {
                'bands': am.ch_info.band,
                'channels': am.ch_info.channel,
+               'white_noise' : noise_pars[:, 0],
+               'oneoverf_exp' : noise_pars[:, 1],
+               'fknees': noise_pars[:, 2],
                'band_medians': band_medians,
                'f': f,
                'axx': axx,
                'bincenters': bincenters,
                'lowfn': lowfn,
-               'low_f_10mHz': nl_10mHz_rat}
+               'low_f_10mHz': nl_10mHz_rat
+    }
     return outdict
+
 
 def plot_band_noise(am, nbins=40, noisedict=None, wl_f_range=(10,30),
                     fit=False, nperdecade=10, show_plot=True, save_plot=False,
@@ -249,8 +257,8 @@ def plot_band_noise(am, nbins=40, noisedict=None, wl_f_range=(10,30),
     if noisedict == None:
         noisedict = get_noise_params(am, wl_f_range=wl_f_range, fit=fit,
                                       nperdecade=nperdecade, **asd_args)
-    wls = noisedict['noise_pars'][:,0]
-    fknees = noisedict['noise_pars'][:,2]
+    wls = noisedict['white_noise']
+    fknees = noisedict['fknees']
     band_medians = noisedict['band_medians']
 
     #Only turns off interactive mode inside with so that won't effect setting.
@@ -367,6 +375,7 @@ def plot_band_noise(am, nbins=40, noisedict=None, wl_f_range=(10,30),
             plt.ion()
     return fig_wnl, axes_wnl, fig_fk, axes_fk, fig_asd, axes_asd
 
+
 def plot_channel_noise(am, rc, save_dir=None, noisedict=None, wl_f_range=(10,30),
                        fit=False, show_plot=False, save_plot=False, nperdecade=10,
                        plot1overfregion=False, **asd_args):
@@ -414,7 +423,6 @@ def plot_channel_noise(am, rc, save_dir=None, noisedict=None, wl_f_range=(10,30)
         noisedict = get_noise_params(am, wl_f_range=wl_f_range, fit=fit,
                                      nperdecade=nperdecade, **asd_args)
     f,axx = noisedict['f'],noisedict['axx']
-    noise_pars = noisedict['noise_pars']
 
     #Only turns off in with so that doesn't effect outside setting.
     try:
@@ -434,22 +442,20 @@ def plot_channel_noise(am, rc, save_dir=None, noisedict=None, wl_f_range=(10,30)
         ax1.set_title(ttlstr,fontsize = 18)
         ax2 = axes[1]
         ax2.loglog(f,axx[rc],color = 'grey',alpha = 0.7)
-        ax2.axhline(noise_pars[rc,0], xmin=0.5, xmax=1, lw=2, ls=':',
+        ax2.axhline(noisedict['white_noise'][rc], xmin=0.5, xmax=1, lw=2, ls=':',
                     color='k')
-        wl_fknee = axx[rc,np.nanargmin(np.abs(f-noise_pars[rc,2]))]
-        ax2.plot(noise_pars[rc,2], wl_fknee, '*', markersize=8, color='green')
+        wl_fknee = axx[rc,np.nanargmin(np.abs(f-noisedict['fknees'][rc]]))]
+        ax2.plot(noisedict['fknees'][rc], wl_fknee, '*', markersize=8, color='green')
         if plot1overfregion:
-            #plt.axhline(np.sqrt(2)*noise_pars[rc,0],color = 'C0')
-            #plt.axvline(noise_pars[rc,2])
             plt.plot(noisedict['bincenters'],
                      noisedict['lowfn'][rc],'.',lw = 3,color = 'r')
-            l1 = noise_pars[rc,0]*np.ones(len(f[f<=0.1]))
+            l1 = noisedict['white_noise'][rc]*np.ones(len(f[f<=0.1]))
             with np.errstate(divide='ignore'):
                 l2 = 65*np.sqrt(0.1/f[f<=0.1])
             ax2.plot(f[f<=0.1],l2,'--',color = 'C1')
             ax2.fill_between(f[f<=0.1],l2,l1,color = 'wheat',alpha = 0.3)
-        text = f'White Noise: {np.round(float(noise_pars[rc,0]),1)} pA/rtHz\n'
-        text += 'f$_{knee}$: '+f'{np.round(noise_pars[rc,2],4)} Hz'
+        text = f'White Noise: {np.round(float(noisedict['white_noise'][rc]),1)} pA/rtHz\n'
+        text += 'f$_{knee}$: '+f'{np.round(noisedict['fknees'][rc],4)} Hz'
         ax2.text(0.03, 0.1, text, bbox=props, transform=ax2.transAxes)
         ax2.set_xlabel('Frequency [Hz]', fontsize=14)
         ax2.set_ylabel('ASD [pA/rtHz]', fontsize=14)
@@ -467,6 +473,7 @@ def plot_channel_noise(am, rc, save_dir=None, noisedict=None, wl_f_range=(10,30)
         if isinteractive:
             plt.ion()
     return fig, axes
+
 
 @sdl.set_action()
 def take_noise(S, cfg, acq_time=30, plot_band_summary=True, nbins=40,
@@ -588,6 +595,7 @@ def take_noise(S, cfg, acq_time=30, plot_band_summary=True, nbins=40,
     sdl.validate_and_save(fname, outdict, S=S, cfg=cfg, make_path=False)
     return am, outdict
 
+
 def plot_noise_all(res, range=(0, 200), text_loc=(0.4, 0.7)):
     """
     Plots the white noise distribution of all bands together.
@@ -603,8 +611,7 @@ def plot_noise_all(res, range=(0, 200), text_loc=(0.4, 0.7)):
         coordinates are in the axis tranform frame with (0, 0) being the bottom
         left and (1, 1) being the top right.
     """
-    pars = res['noise_pars']
-    wls = pars[:, 0]
+    wls = res['noisedict']['white_noise']
     fig, ax = plt.subplots()
     hs = ax.hist(wls, range=range, bins=40)
     wlmed = np.nanmedian(wls)
