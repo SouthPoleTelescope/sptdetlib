@@ -1,4 +1,4 @@
-from sodetlib.legacy.analysis import squid_fit as sf
+from sodetlib.operations import squid_curves as sc
 import numpy as np
 import matplotlib.pylab as plt
 import os
@@ -108,14 +108,14 @@ for band in bands:
         #squid_data=frdata[band][(None,None)]['fvsfr'][idx]
         #fres=frdata[band][(None,None)]['fres'][idx]        
 
-        est=sf.estimate_fit_parameters(
+        est=sc.estimate_fit_parameters(
             bias,squid_data,nharmonics_to_estimate=options.nharmonics,debug=options.debug)
 
         plt.figure()
 
         #fit
-        popt, pcov = curve_fit(sf.model, bias, squid_data, p0=est)
-        fit_curve=sf.model(bias,*popt)
+        popt, pcov = curve_fit(sc.squid_curve_model, bias, squid_data, p0=est)
+        fit_curve=sc.squid_curve_model(bias,*popt)
         # some fit curve statistics
         fit_curve_span=np.max(fit_curve)-np.min(fit_curve)        
         fit_curve_center=fit_curve_span/2.+np.min(fit_curve)        
@@ -143,13 +143,13 @@ for band in bands:
                  lw=2,c='k')
         
         if options.plot_guess:
-            plt.plot(xvals,sf.model(bias,*est),
+            plt.plot(xvals,sc.squid_curve_model(bias,*est),
                      'm--',label='guess')
 
         # evaluate model over just one cycle
         phi_over_one_cycle=np.linspace(0,phi0_ff,10000)
         phi_over_one_cycle+=phi0_offset_ff
-        fit_curve_over_one_cycle=sf.model(phi_over_one_cycle,*popt)        
+        fit_curve_over_one_cycle=sc.squid_curve_model(phi_over_one_cycle,*popt)        
         phi_over_one_cycle/=phi0_ff
         # only useful to plot to make sure it's right.  Plot will only look
         # right if plot_in_phi0=True
@@ -173,13 +173,13 @@ for band in bands:
                              n in range(len(harmonic_amplitudes))]))
         hhpwr=( ( np.square(popt[3]) )/( np.sum(np.square(popt[4:])) ) )**-1
         
-        fit_curve1=sf.model(bias,*popt1)
+        fit_curve1=sc.squid_curve_model(bias,*popt1)
         # some first harmonic fit curve statistics
         fit_curve1_span=np.max(fit_curve1)-np.min(fit_curve1)        
         fit_curve1_center=fit_curve1_span/2.+np.min(fit_curve1)                    
 
         # compute average sensitivity contributed by only the first harmonic.
-        fit_curve1_over_one_cycle=sf.model(phi_over_one_cycle*phi0_ff,*popt1)
+        fit_curve1_over_one_cycle=sc.squid_curve_model(phi_over_one_cycle*phi0_ff,*popt1)
         avg_dfdphi1_Hzperuphi0=np.nanmean(np.abs(np.gradient(fit_curve1_over_one_cycle))/(np.gradient(phi_over_one_cycle)))
         # end attempt to estimate sensitivity from first harmonic alone
 

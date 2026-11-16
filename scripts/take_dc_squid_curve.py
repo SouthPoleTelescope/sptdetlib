@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 
 from sodetlib.det_config import DetConfig
-from sodetlib.legacy.smurf_funcs.smurf_ops import take_squid_open_loop
+from sodetlib.operations.squid_curves import take_squid_curve
 
 
 if __name__=='__main__':
@@ -20,17 +20,13 @@ if __name__=='__main__':
                         help='Time to wait between flux steps in seconds.')
     parser.add_argument('--Npts',type=int,default = 3,
                         help='Number of points to average')
-    parser.add_argument('--NPhi0s',type=int, default=4,
-                        help='Number of periods in your squid curve.')
+    parser.add_argument('--frac-full-scale-max',type=float, default=0.3,
+                        help='Max value of fraction full scale to use.')
     parser.add_argument('--Nsteps',type=int,default=500,
                         help='Number of points in your squid curve.')
-    parser.add_argument('--relock',action = 'store_true',
-                        help='If specified will run relock.')
     args = cfg.parse_args(parser)
     S = cfg.get_smurf_control(dump_configs=True)
-    take_squid_open_loop(S, cfg, bands = args.bands,
-                        wait_time = args.wait_time,
-						Npts = args.Npts, NPhi0s = args.NPhi0s,
-						Nsteps = args.Nsteps,relock = args.relock,
-                        reset_rate_khz=None,lms_gain = None,
-                        frac_pp=None, lms_freq=None)
+    take_squid_curve(
+        S, cfg, bands=args.bands, wait_time=args.wait_time, Npts=args.Npts,
+        frac_full_scale_max=args.frac_full_scale_max, Nsteps=args.Nsteps,
+    )

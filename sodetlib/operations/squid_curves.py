@@ -4,7 +4,6 @@ import time
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 import sodetlib as sdl
-from sodetlib.legacy.analysis import squid_fit as sqf
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm, trange
 
@@ -417,7 +416,7 @@ def get_derived_params_and_text(data, model_params, idx):
     derived_params : dict
         Dictionary of useful parameters derived from the model fit.
     '''
-    fit_curve = sqf.model(data['fluxramp_ffs'], *model_params)
+    fit_curve = squid_curve_model(data['fluxramp_ffs'], *model_params)
     df_khz = np.ptp(fit_curve)*1000
     phi_over_one_cycle = np.linspace(0, model_params[0], 10000)+model_params[1]
     fit_curve_over_one_cycle = squid_curve_model(
